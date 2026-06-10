@@ -1,0 +1,48 @@
+Controlador de leds
+
+Módulo: LedAnimator.v (Máquina de Estados de Moore)
+Frequência Base (Tick): 100 ms (derivado do Clock de 50MHz)
+
+Este documento define os padrões de feedback visual utilizando os
+barramentos LEDR[17:0] (18 leds Vermelhos) e LEDG[8:0]
+(9 leds Verdes) da placa DE2-115 para representar os
+estados da partida de UNO.
+
+Estados de turno
+
+    - Turno do Jogador:
+    Comportamento: Todos os leds Verdes (LEDG[8:0]) permanecem ligados.
+    Condição: Sistema aguardando input do jogador.
+
+    - Turno da CPU:
+    Comportamento: Todos os leds Vermelhos (LEDR[17:0]) permanecem ligados.
+    Condição: Sistema processando a jogada da CPU.
+
+
+Estados de alerta e erro
+
+    - Jogada Inválida:
+    Comportamento: Todos os leds Vermelhos piscam simultaneamente 2 vezes.
+    Duração: Rápida (ex: 400ms total - 100ms ON / 100ms OFF).
+    Transição: Retorna automaticamente ao "Turno do Jogador" após a execução.
+
+Estados de fim de jogo e sistema
+
+    - Vitória (Player Win):
+    Comportamento: Efeito "Cobrinha" (Shift Register) nos leds Verdes. Um
+    ou mais leds acesos se deslocam da direita para a esquerda e vice-versa.
+    Duração: Loop contínuo com interrupção cravada em 5 segundos.
+    Transição: Após 5s, o sistema deve aguardar o comando de Reset.
+
+    - Derrota (CPU Win):
+    Comportamento: Efeito "Cobrinha" (Shift Register) nos leds Vermelhos.
+    Semelhante à vitória, mas utilizando o barramento LEDR.
+    Duração: Loop contínuo com interrupção cravada em 5 segundos.
+    Transição: Após 5s, o sistema deve aguardar o comando de Reset.
+
+    - Reset / Inicialização do Jogo:
+    Comportamento: Efeito "Cobrinha de Varredura". Um pulso luminoso
+    percorre todos os leds da placa (cruzando do barramento Verde para o
+    Vermelho) uma única vez.
+    Duração: Duração de 1 ciclo completo pelo barramento.
+    Transição: Ao finalizar, o painel é limpo e o jogo inicia (Turno do Jogador).

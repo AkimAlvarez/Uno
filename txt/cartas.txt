@@ -1,0 +1,23 @@
+No uno existem 108 cartas:
+
+Cartas Numéricas (76 cartas):
+0 [4] -> uma pra cada cor;
+1 a 9 [72] -> duas de cada número pra cada cor (8 cartas por número);
+
+Cartas de Ação Coloridas (24 cartas):
+Pular [8] -> duas pra cada cor;
+Inverter [8] -> duas pra cada cor;
++2 [8] -> duas pra cada cor;
+
+Cartas Especiais/Pretas (8 cartas):
+Muda de cor [4] -> uma unica cor (muda a cor do topo);
++4 [4] -> uma unica cor (escolhe a cor e compra 4);
+
+O max que um jogador pode acumular é: 100 cartas.
+
+Pior Cenário do player (quebrando regras):
+- Total do baralho: 108 cartas.
+- Mão inicial da CPU: 7 cartas.
+- Carta inicial virada na mesa: 1 carta.
+- Restante no baralho para compra: 93 cartas.
+- Total máximo: 7 (mão inicial do Player) + 93 (todas as compras possíveis) = 100 cartas.

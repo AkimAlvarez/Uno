@@ -1,0 +1,26 @@
+# QUARTUS - BANCO DE DADOS E COMPILAÇÃO
+db/
+incremental_db/
+output_files/
+simulation/
+timing/
+
+# QUARTUS - RELATÓRIOS E LOGS (RPTs, MSGs)
+
+*.rpt
+*.summary
+*.smsg
+*.jdi
+*.pin
+*.done
+*.qmsg
+*.bak
+
+# QUARTUS - CONFIGURAÇÕES DE USUÁRIO (LIXO VISUAL)
+*.qws
+
+# MODELSIM - AMBIENTE E ONDAS
+work/
+transcript
+*.wlf
+modelsim.ini
