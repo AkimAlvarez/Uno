@@ -1,0 +1,46 @@
+PADRONIZAÇÃO CARTAS UNO (10 Bits)
+
+Formato do Barramento: [9:0] carta
+Divisão: [9:8] Categoria | [7:4] Valor/Ação | [3:0] Cor
+
+
+CATEGORIA (Bits [9:8] - Flags para a FSM)
+Usado pela FSM para identificar a família da carta rapidamente.
+
+2'b00 -> Carta Numérica Comum
+2'b01 -> Carta de Ação Colorida (Pular, Inverter, +2)
+2'b10 -> Carta Coringa Especial (Muda cor, +4)
+2'b11 -> Slot Vazio / Ausência de carta na memória
+
+
+VALOR E AÇÃO (Bits [7:4] - Padrão Hexadecimal)
+Enviado diretamente ao módulo "DecoderValor"
+
+4'b0000 -> 0 ou (Especial: Muda de cor / Wild)
+4'b0001 -> 1
+4'b0010 -> 2
+4'b0011 -> 3
+4'b0100 -> 4 ou (Especial: +4 / Wild Draw Four)
+4'b0101 -> 5
+4'b0110 -> 6
+4'b0111 -> 7
+4'b1000 -> 8
+4'b1001 -> 9
+4'b1010 -> A (Ação: Pular / Skip)
+4'b1011 -> B (Ação: Inverter / Reverse)
+4'b1100 -> C (Ação: +2 / Draw Two)
+4'b1101 -> D
+4'b1110 -> E
+4'b1111 -> F (Vazio / Desliga os 7-segmentos numéricos)
+
+
+COR (Bits [3:0] - Codificação One-Hot)
+Enviado diretamente ao módulo "DecoderCor". Permite à FSM
+comparar cores usando apenas a porta lógica AND.
+
+4'b0100 -> Verde    (Display exibe a letra 'A')
+4'b0010 -> Azul     (Display exibe a letra 'b')
+4'b0001 -> Amarelo  (Display exibe a letra 'C')
+4'b1000 -> Vermelho (Display exibe a letra 'd')
+4'b0000 -> Preto    (Display exibe a letra 'E')
+Outros  -> Vazio    (Desliga os 7-segmentos da cor)

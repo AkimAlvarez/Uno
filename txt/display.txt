@@ -1,0 +1,19 @@
+Bits pra ligar cada coisa no display ()
+
+7'b1000000 - num 0
+7'b1111001 - num 1
+7'b0100100 - num 2
+7'b0110000 - num 3
+7'b0011001 - num 4
+7'b0010010 - num 5
+7'b0000010 - num 6
+7'b1111000 - num 7
+7'b0000000 - num 8
+7'b0010000 - num 9
+7'b0001000 - num 10 [A]
+7'b0000011 - num 11 [b]
+7'b1000110 - num 12 [C]
+7'b0100001 - num 13 [d]
+7'b0000110 - num 14 [E]
+7'b0001110 - num 15 [F]
+7'b1111111 - desligado

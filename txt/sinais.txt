@@ -1,0 +1,96 @@
+DICIONÁRIO DE SINAIS - MÓDULO VIEWCONTROLLER (PAINEL DO UNO)
+
+Descrição: Este documento mapeia todos os 14 sinais de entrada (inputs)
+exigidos pelo módulo estrutural de topo (ViewController).
+
+SINAIS DE RELÓGIO E SINCRONISMO (SISTEMA NERVOSO)
+
+[1 bit] clk
+    - O sinal de relógio principal do FPGA (ex: 50 MHz da DE2-115).
+    - Exigência: Deve ser contínuo. Alimenta os divisores de frequência e a FSM interna do painel.
+
+[1 bit] reset
+    - Sinal físico do botão de reset da placa.
+    - Exigência: O módulo espera o sinal "sujo" direto do botão físico. O ViewController
+      já possui um ResetSynchronizer interno de 4 estágios para tratar a metaestabilidade
+      e o debounce para o restante do painel.
+
+
+2BARRAMENTOS DE DADOS (AS CARTAS)
+
+[10 bits] player_card
+    - A carta atual na mão do jogador ou que ele selecionou para jogar.
+    - Padronização (Da esquerda para a direita):
+        [9:8] Categoria: 00 (Num), 01 (Ação), 10 (Coringa), 11 (Vazio)
+        [7:4] Valor/Ação: 0-9 (Num), A (Pular), B (Inverter), C (+2), 0 ou 4 (Coringas), F (Vazio/Desliga)
+        [3:0] Cor (One-Hot): 1000 (Vermelho), 0100 (Verde), 0010 (Azul), 0001 (Amarelo), 0000 (Preto)
+
+[10 bits] top_card
+    - A carta que está fisicamente visível no topo da mesa.
+    - Exigência: Segue rigorosamente a mesma formatação de 10 bits do 'player_card'.
+      Durante a escolha de cor de um curinga, a FSM deve manter esta variável enviando o
+      código da carta preta (E0 ou E4) até a confirmação da nova cor.
+
+
+
+CONTROLES DO MENU DE CORES (O BLINK)
+
+[1 bit] choosing_color
+    - Flag que indica se o jogador está no estado de escolher uma cor.
+    - 0 = Jogo normal. O display exibe a 'player_card'.
+    - 1 = Menu ativo. O módulo entra em estado de animação, ignorando a cor da 'player_card'
+          e passando a piscar alternando entre a letra 'E' (Preto) e a cor apontada no seletor.
+
+[4 bits] color_selector
+    - Sinal lido APENAS quando 'choosing_color' = 1. Indica a cor que o jogador está avaliando.
+    - Padronização (One-Hot):
+        0100 -> Verde (Painel forçará a letra 'A')
+        0010 -> Azul (Painel forçará a letra 'b')
+        0001 -> Amarelo (Painel forçará a letra 'C')
+        1000 -> Vermelho (Painel forçará a letra 'd')
+
+
+
+CONTADORES DE MEMÓRIA (O DECK)
+
+[7 bits] n_player
+    - Binário puro indicando a quantidade de cartas na mão do jogador.
+    - Limites: De 0 a 127.
+    - Exigência: O módulo possui trava de hardware. Valores de 100 a 127 forçarão
+      os displays de 7-segmentos a travarem em '99'.
+
+[7 bits] n_cpu
+    - Binário puro indicando a quantidade de cartas na mão da CPU.
+    - Limites: Mesmas regras do 'n_player'.
+
+
+
+FLAGS DE ESTADO E ANIMAÇÃO (A FSM DO JOGO)
+
+[1 bit] start_game
+    - Gatilho que tira os displays e LEDs do estado IDLE (inativo).
+    - Ação: Deve receber um pulso da FSM (nível alto por pelo menos 1 ciclo de clk).
+      Dispara uma animação de piscar todos os LEDs confirmando o início.
+
+[1 bit] player_turn
+    - Flag de nível indicando que o sistema aguarda ação do jogador.
+    - Ação: Enquanto estiver em 1, todos os 9 LEDs Verdes (LEDG) ficam acesos.
+
+[1 bit] cpu_turn
+    - Flag de nível indicando que o processador está calculando a jogada da máquina.
+    - Ação: Enquanto estiver em 1, todos os 18 LEDs Vermelhos (LEDR) ficam acesos.
+
+[1 bit] invalid_move
+    - Gatilho de punição por jogada ilegal.
+    - Ação: Recebe um pulso da FSM. Interrompe os turnos e pisca o barramento
+      vermelho 3 vezes seguidas antes de devolver o controle ao jogador.
+
+[1 bit] win_game
+    - Gatilho de fim de jogo (Vitória).
+    - Ação: Pulso. Desliga as funções normais e inicia a animação de ring counter
+      ("cobrinha") nos LEDs verdes por 5 segundos. Em seguida, entra em IDLE.
+
+[1 bit] lose_game
+    - Gatilho de fim de jogo (Derrota).
+    - Ação: Pulso. Inicia a animação de "cobrinha" nos LEDs vermelhos por 5 segundos
+      e depois entra em IDLE.
