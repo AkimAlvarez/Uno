@@ -4,8 +4,10 @@ module tigrinho(
     output reg [6:0] carta_sorteada_id
 );
 
-    reg [107:0] cartas_usadas;
-    reg [6:0] contador;    
+    wire[7:0] lfsr_out;
+    wire lfsr_done;
+
+    reg [107:0] cartas_usadas;   
 
     reg [1:0] current_state, next_state;
 
@@ -15,6 +17,15 @@ module tigrinho(
     localparam waiting       = 2'b11;
 
     reg carta_valida;
+
+    LFSR #(.NUM_BITS(8)) embaralhador(
+        .i_Clk(clk),
+        .i_Enable(1'b1),
+        .i_Seed_DV(1'd0),
+        .i_Seed_Data(8'b0),
+        .o_LFSR_Data(lfsr_out),
+        .o_LFSR_Done(lfsr_done)
+    );
     
     always @(posedge clk) begin
         if (rst) begin
@@ -22,14 +33,8 @@ module tigrinho(
             cartas_usadas <= 108'd0;
             carta_sorteada_id <= 7'd0;
             carta_valida <= 0;
-            contador <= 7'd0;
         end else begin
             current_state <= next_state;
-
-            if(contador == 7'd107)
-                contador <= 7'd0;
-            else
-                contador <= contador + 7'd1;
 
             case(current_state)
                 waiting: begin
@@ -37,9 +42,9 @@ module tigrinho(
                 end
                 
                 validar_carta: begin
-                    if (!cartas_usadas[contador]) begin
-                        cartas_usadas[contador] <= 1'b1;
-                        carta_sorteada_id <= contador;
+                    if (lfsr_out < 8'd108 && !cartas_usadas[lfsr_out]) begin
+                        cartas_usadas[lfsr_out] <= 1'b1;
+                        carta_sorteada_id <= lfsr_out[6:0];
                         carta_valida <= 1;
                     end
                 end
