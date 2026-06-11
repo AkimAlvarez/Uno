@@ -10,19 +10,15 @@ module ClockDiv #(
 
     reg [22:0] contador;
 
-    initial begin
-        contador = 23'b0;
-    end
-
-    // extrai o pulso do bit parametrizado 
+    // extrai o pulso do bit parametrizado
     assign tick_out = contador[BIT_ALVO];
 
     always @(posedge clk) begin
         if(reset) begin
-            contador <= 23'b0;           // reseta o contador
+            contador <= 23'd0;           // reseta o contador
         end
         else begin
-            contador <= contador + 1'b1; // incrementa o contador declarando a constante como 1 bit
+            contador <= contador + 23'd1; // incrementa o contador em um bit mantendo a largura do barramento
         end
     end
 

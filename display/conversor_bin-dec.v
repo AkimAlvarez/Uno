@@ -13,15 +13,23 @@ module QuantityConversor (
     localparam TRAVA_DEZ = 4'd9;
     localparam TRAVA_UNID = 4'd9;
 
+    // vars intermediárias de 7 bits
+    reg [6:0] calc_dez;
+    reg [6:0] calc_unid;
+
     always @(*) begin
         if (qtd_cards > MAX_CARDS) begin
             // se por algum motivo passar de 99, trava o display em 99
             display_out_dez = TRAVA_DEZ;
             display_out_unid = TRAVA_UNID;
         end else begin
-            // o quartus vai sintetizar um bloco divisor no hardware para resolver isso
-            display_out_dez = qtd_cards / 10;
-            display_out_unid = qtd_cards % 10;
+            // Faz a divisão e o resto
+            calc_dez = qtd_cards / 7'd10;
+            calc_unid = qtd_cards % 7'd10;
+
+            // envia os 4 LSB pros displays
+            display_out_dez = calc_dez[3:0];
+            display_out_unid = calc_unid[3:0];
         end
     end
 

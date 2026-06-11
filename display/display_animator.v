@@ -3,6 +3,7 @@
 module DisplayAnimator (
     input clk,
     input reset,
+    input tick_rapido,
     input choosing_color,
     input game_start,
     input [3:0] color_selector,
@@ -12,14 +13,6 @@ module DisplayAnimator (
     output reg [6:0] right_p_display, // display da direita (valor / letra da cor)
     output reg [6:0] left_p_display   // display da esquerda (cor / menu)
 );
-
-    wire tick_rapido;
-
-    ClockDiv redutor_freq(
-        .clk(clk),
-        .reset(reset),
-        .tick_out(tick_rapido)
-    );
 
     // codificação one-hot dos estados
     localparam IDLE = 3'b001, NORMAL_GAME = 3'b010, CHOOSING_COLOR = 3'b100;
@@ -36,12 +29,6 @@ module DisplayAnimator (
     reg [2:0] estado_atual;
     reg pisca_status;
     reg tick_rapido_ant;
-
-    initial begin
-        estado_atual = IDLE;
-        pisca_status = 1'b0;
-        tick_rapido_ant = 1'b0;
-    end
 
     always @(posedge clk) begin
         if(reset) begin

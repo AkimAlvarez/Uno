@@ -1,6 +1,4 @@
 // controlador geral para a visualização do jogo
-// organizar instanciação do clk_div
-// ajustar configs do intial (só usar initial em tb -> n sint)
 
 module ViewController (
     // entradas do sistema
@@ -12,8 +10,8 @@ module ViewController (
     input [9:0] top_card,
 
     // controles do menu de cores
-    input choosing_color,      // 1 = menu ativo, 0 = jogo normal
-    input [3:0] color_selector,// 0001=vermelho, 0010=azul, 0100=verde, 1000=amarelo
+    input choosing_color,
+    input [3:0] color_selector,
 
     // contadores de cartas
     input [6:0] n_player,
@@ -40,7 +38,6 @@ module ViewController (
     output [8:0] ledg
 );
 
-
     wire w_reset_sync; // fio que vai receber o reset limpo
 
     ResetSynchronizer #(
@@ -51,11 +48,22 @@ module ViewController (
         .reset_sync(w_reset_sync)
     );
 
-    // animação dos leds
+    // gera o clk para as animações
 
+    wire w_tick_animacao;
+
+    ClockDiv redutor_freq(
+        .clk(clk),
+        .reset(w_reset_sync),
+        .tick_out(w_tick_animacao)
+    );
+
+
+    // animação dos leds
     LedAnimator animador_leds (
         .clk(clk),
         .reset(w_reset_sync),
+        .tick_rapido(w_tick_animacao),
         .player_turn(player_turn),
         .cpu_turn(cpu_turn),
         .invalid_move(invalid_move),
@@ -66,8 +74,7 @@ module ViewController (
         .ledg(ledg)
     );
 
-    // animação dos displyas
-
+    // animação dos displays
     wire [6:0] w_dec_cor_p; // fio interno p cor decodificada
     wire [6:0] w_dec_val_p; // fio interno p valor decodificado
 
@@ -85,6 +92,7 @@ module ViewController (
     DisplayAnimator animador_displays (
         .clk(clk),
         .reset(w_reset_sync),
+        .tick_rapido(w_tick_animacao),
         .choosing_color(choosing_color),
         .game_start(start_game),
         .color_selector(color_selector),
@@ -94,7 +102,7 @@ module ViewController (
         .right_p_display(out_val_player)
     );
 
-    // // dedodificação da cor e do binário p display (mesa)
+    // displays mesa (top card)
     DecoderCor dec_cor_t (
         .cor_input(top_card[3:0]),
         .display_out(out_cor_top)
@@ -105,7 +113,6 @@ module ViewController (
     );
 
     // contadores de cartas
-
     wire [3:0] w_player_dez, w_player_unid;
     wire [3:0] w_cpu_dez, w_cpu_unid;
 

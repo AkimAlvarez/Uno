@@ -5,7 +5,6 @@ module DecoderValor (
     output reg [6:0] display_out
 );
 
-
     // 0 liga o segmento, 1 apaga.
 
     localparam NUM_0   = 7'b1000000;
@@ -46,7 +45,7 @@ module DecoderValor (
             4'hE: display_out = LETRA_E;
             4'hF: display_out = APAGADO;
 
-            default: display_out = APAGADO; 
+            default: display_out = APAGADO;
         endcase
     end
 

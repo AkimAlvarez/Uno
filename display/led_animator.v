@@ -4,6 +4,7 @@ module LedAnimator (
     input clk,
     input reset,
     input player_turn,
+    input tick_rapido,
     input cpu_turn,
     input invalid_move,
     input win_game,
@@ -12,14 +13,6 @@ module LedAnimator (
     output reg [17:0] ledr,
     output reg [8:0] ledg
 );
-
-    wire tick_rapido;
-
-    ClockDiv redutor_freq(
-        .clk(clk),
-        .reset(reset),
-        .tick_out(tick_rapido)
-    );
 
     // estados da fsm
     localparam VITORIA = 5'b10000, DERROTA = 5'b00001, TURNOS = 5'b01000, INVALIDA = 5'b00100, IDLE = 5'b00010;
@@ -42,10 +35,6 @@ module LedAnimator (
     reg[4:0] estado_atual; //são 5 estados (Turnos, Vitória, Derrota, Jogada inválida e IDLE)
     reg[2:0] contador_piscadas;
     reg tick_rapido_ant;
-
-    initial begin
-        estado_atual = IDLE;
-    end
 
     always @(posedge clk) begin
         if (reset) begin
@@ -94,7 +83,7 @@ module LedAnimator (
                         ledr <= ~ledr;
 
                         // registra que uma piscada aconteceu
-                        contador_piscadas <= contador_piscadas + 1;
+                        contador_piscadas <= contador_piscadas + 3'd1;
 
                         // 2 piscadas completas precisam de 4 viradas (liga, desliga, liga, desliga)
                         if (contador_piscadas == MAX_PISCADAS) begin
@@ -112,7 +101,7 @@ module LedAnimator (
                         ledg <= { ledg[7:0], ledg[8] };
 
                         // cronômetro de 5 segundos
-                        contador_tempo <= contador_tempo + 1;
+                        contador_tempo <= contador_tempo + 6'd1;
 
                         if (contador_tempo == MAX_TEMPO_5S) begin
                             contador_tempo <= 6'd0; // reseta o contador
@@ -129,7 +118,7 @@ module LedAnimator (
                         ledr <= { ledr[16:0], ledr[17] };
 
                         // cronômetro de 5 segundos
-                        contador_tempo <= contador_tempo + 1;
+                        contador_tempo <= contador_tempo + 6'd1;
 
                         if (contador_tempo == MAX_TEMPO_5S) begin
                             contador_tempo <= 6'd0; // reseta o contador
@@ -148,7 +137,7 @@ module LedAnimator (
                             ledg <= ~ledg;
 
                             // registra que uma piscada aconteceu
-                            contador_piscadas <= contador_piscadas + 1;
+                            contador_piscadas <= contador_piscadas + 3'd1;
 
                             // 2 piscadas completas precisam de 4 viradas (liga, desliga, liga, desliga)
                             if (contador_piscadas == MAX_PISCADAS) begin
