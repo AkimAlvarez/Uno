@@ -4,70 +4,49 @@ module tigrinho(
     output reg [6:0] carta_sorteada_id
 );
 
-    wire[6:0] lfsr_out;
+    wire[7:0] lfsr_out;
     wire lfsr_done;
 
-    reg [6:0] baralho [0:107];
-    reg [6:0] deck_ptr;
-    reg [6:0] counter;
+    reg [107:0] cartas_usadas;   
 
-    reg [2:0] current_state, next_state;
+    reg [1:0] current_state, next_state;
 
-    localparam idle          = 3'd0;
-    localparam reset_deck    = 3'd1;
-    localparam shuffle       = 3'd2;
-    localparam distribute    = 3'd3;
-    localparam ready         = 3'd4;
-    localparam cavar         = 3'd5;
-    localparam waiting       = 3'd6;
+    localparam idle          = 2'b00;
+    localparam validar_carta = 2'b01;
+    localparam cavar         = 2'b10;
+    localparam waiting       = 2'b11;
 
     reg carta_valida;
 
-    LFSR #(.NUM_BITS(7)) embaralhador(
+    LFSR #(.NUM_BITS(8)) embaralhador(
         .i_Clk(clk),
         .i_Enable(1'b1),
         .i_Seed_DV(1'd0),
-        .i_Seed_Data(7'b0),
+        .i_Seed_Data(8'b0),
         .o_LFSR_Data(lfsr_out),
         .o_LFSR_Done(lfsr_done)
     );
     
     always @(posedge clk) begin
         if (rst) begin
-            current_state <= reset_deck;
-            counter <= 0;
-            deck_ptr <= 0;
+            current_state <= idle;
+            cartas_usadas <= 108'd0;
+            carta_sorteada_id <= 7'd0;
+            carta_valida <= 0;
         end else begin
             current_state <= next_state;
 
-            case (current_state)
-                reset_deck: begin
-                    baralho[counter] <= counter;
-                    if (counter == 107) begin
-                        counter <= 107;
+            case(current_state)
+                waiting: begin
+                    carta_valida <= 0;
+                end
+                
+                validar_carta: begin
+                    if (lfsr_out < 8'd108 && !cartas_usadas[lfsr_out]) begin
+                        cartas_usadas[lfsr_out] <= 1'b1;
+                        carta_sorteada_id <= lfsr_out[6:0];
+                        carta_valida <= 1;
                     end
-                    else
-                        counter <= counter + 1;
-                end
-
-                shuffle: begin
-                    if(lfsr_out <= counter) begin
-                        baralho[counter] <= baralho [lfsr_out[6:0]];
-                        baralho[lfsr_out[6:0]] <= baralho[counter];
-                        if(counter == 1)
-                            counter <= 0;
-                        else
-                            counter <= counter -1;
-                    end
-                end
-
-                distribute: begin
-                    deck_ptr <= 15;
-                end
-
-                cavar: begin
-                    carta_sorteada_id <= baralho[deck_ptr];
-                    deck_ptr <= deck_ptr + 1;
                 end
             endcase
         end
@@ -78,29 +57,28 @@ module tigrinho(
         draw_action = 1'b0;
 
         case (current_state)
-            reset_deck: begin
-                if (counter ==107) 
-                    next_state = shuffle;
+            idle: begin
+                if(draw)
+                    next_state = validar_carta;
             end
-            shuffle:begin
-                if(counter == 0) 
-                    next_state = distribute;
-            end
-            distribute: begin
-                next_state = ready;
-            end
-            ready: begin
-                if  (draw)
+            
+            validar_carta: begin
+                draw_action = 1'b1;
+                if(carta_valida)
                     next_state = cavar;
             end
+
             cavar: begin
                 draw_action = 1'b1;
                 next_state = waiting;
             end
+
             waiting: begin
-                if(!draw)
-                    next_state = ready;
+                if (draw) begin
+                    next_state = validar_carta;
+                end
             end
+                
             default: next_state = idle;
         endcase
     end
