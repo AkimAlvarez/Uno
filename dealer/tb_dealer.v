@@ -13,6 +13,8 @@ module tb_dealer;
     // Quantas cartas o teste vai comprar de forma encadeada
     localparam TOTAL_CARTAS = 5;
 
+    integer reset_hold;
+
     top uut (
         .clk(clk),
         .rst(rst),
@@ -30,12 +32,18 @@ module tb_dealer;
         draw = 0;
         cartas_compradas = 0;
 
+        if (!$value$plusargs("RESET_HOLD=%d", reset_hold))
+            reset_hold = 50; // padrao
+
         $display("=================================================");
         $display("   INICIANDO SIMULACAO DO BARALHO DE UNO         ");
+        $display("   RESET segurado por %0d ns (define a semente)  ", reset_hold);
         $display("=================================================");
 
-        // Reset sincrono
-        repeat (2) @(posedge clk);
+        // Mantem o RESET pressionado por 'reset_hold' ns; o instante
+        // em que ele e solto define a semente do LFSR (entropia).
+        #(reset_hold);
+        @(posedge clk);
         rst = 0;
         @(posedge clk);
 

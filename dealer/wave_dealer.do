@@ -14,6 +14,10 @@ add wave -noupdate -radix binary /tb_dealer/uut/dealer/rst
 add wave -noupdate /tb_dealer/uut/dealer/draw_action
 add wave -noupdate -radix decimal /tb_dealer/uut/dealer/carta_sorteada_id
 add wave -noupdate /tb_dealer/uut/dealer/cartas_usadas
+add wave -noupdate -divider Semente
+add wave -noupdate -radix decimal /tb_dealer/uut/dealer/entropy_counter
+add wave -noupdate -radix binary /tb_dealer/uut/dealer/reset_release
+add wave -noupdate -radix decimal /tb_dealer/uut/dealer/seed_value
 add wave -noupdate -divider LFSR
 add wave -noupdate -radix decimal /tb_dealer/uut/dealer/lfsr_out
 add wave -noupdate -radix binary /tb_dealer/uut/dealer/lfsr_done
