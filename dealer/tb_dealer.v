@@ -1,4 +1,4 @@
-`timescale 1ns / 1ps // Escala de tempo para a simulação
+`timescale 1ns / 1ps // Escala de tempo para a simulacao
 
 module tb_dealer;
     reg clk;
@@ -8,6 +8,10 @@ module tb_dealer;
     wire [6:0] carta_sorteada_id;
     wire [9:0] carta_sorteada;
 
+    integer cartas_compradas;
+
+    // Quantas cartas o teste vai comprar de forma encadeada
+    localparam TOTAL_CARTAS = 5;
 
     top uut (
         .clk(clk),
@@ -21,78 +25,61 @@ module tb_dealer;
     always #10 clk = ~clk; // Clock de 50MHz
 
     initial begin
-
         clk  = 0;
         rst  = 1;
         draw = 0;
+        cartas_compradas = 0;
 
         $display("=================================================");
         $display("   INICIANDO SIMULACAO DO BARALHO DE UNO         ");
         $display("=================================================");
 
-        #10;
-        
+        // Reset sincrono
+        repeat (2) @(posedge clk);
+        rst = 0;
         @(posedge clk);
 
-        rst = 0;
-        
-        #50;
-        
-        $display("\n---> Comprando Carta 1");
-        apertar_botao_draw();
-
-        #80;
-
-        $display("\n---> Comprando Carta 2");
-        apertar_botao_draw();
-
-        #100;
-
-        $display("\n---> Comprando Carta 3.");
-        apertar_botao_draw();
-
-        #20;
-
-        $display("\n---> Comprando Carta 4");
-        apertar_botao_draw();
-
-        #120;
-
-        $display("\n---> Comprando Carta 5");
-        apertar_botao_draw();
-
-        $display("\n=================================================");
-        $display("               TESTE FINALIZADO                  ");
-        $display("=================================================");
-        $finish;
+        // Dispara a primeira compra; o restante encadeia sozinho
+        $display("\n---> Solicitando primeira compra");
+        solicitar_compra();
     end
 
-    // ==========================================
-    // Task: Simula o pulso do botao e le a carta
-    // ==========================================
-    task apertar_botao_draw;
-        begin
-            // Sincroniza com a subida do clock e aperta o botao por 1 ciclo
+    // A descida de draw_action marca o "final da geracao" de uma carta pelo dealer.
+
+    always @(negedge draw_action) begin
+        if (!rst) begin
+            // 1 ciclo de latencia da LUT sincrona para
+            // garantir 'carta_sorteada' estavel na saida do TOP
             @(posedge clk);
-            draw = 1;
-            @(posedge clk);
-            draw = 0;
-            
-            // Espera a Maquina de Estados (FSM) terminar de cavar a carta
-            // O sinal draw_action sobe em validar_carta/cavar e depois cai
-            wait(draw_action == 1);
-            wait(draw_action == 0);
-            
-            // Como a LUT tem 1 ciclo de latencia sincrona, esperamos mais 1 ciclo
-            // para garantir que 'carta_sorteada' na saida do TOP esteja 100% atualizada
-            @(posedge clk);
-            
-            // Imprime o resultado formatado no console
-            $display("   [SUCESSO] Carta Comprada!");
-            $display("   > Posicao Fisica (ID): %d", carta_sorteada_id);
+
+            cartas_compradas = cartas_compradas + 1;
+
+            $display("\n   [SUCESSO] Carta %0d comprada!", cartas_compradas);
+            $display("   > Posicao Fisica (ID): %0d", carta_sorteada_id);
             $display("   > Bits Crus da Carta : %b", carta_sorteada);
-            $display("   > Interpretacao      : Categoria [%b] | Valor [%b] | Cor [%b]", 
+            $display("   > Interpretacao      : Categoria [%b] | Valor [%b] | Cor [%b]",
                       carta_sorteada[9:8], carta_sorteada[7:4], carta_sorteada[3:0]);
+
+            if (cartas_compradas < TOTAL_CARTAS) begin
+                // Encadeia a proxima compra a partir da borda atual
+                solicitar_compra();
+            end else begin
+                #40;
+                $display("\n=================================================");
+                $display("               TESTE FINALIZADO                  ");
+                $display("=================================================");
+                $finish;
+            end
+        end
+    end
+
+
+    task solicitar_compra;
+        begin
+            @(posedge clk);
+            draw = 1'b1;
+            @(posedge clk);
+            draw = 1'b0;
         end
     endtask
 

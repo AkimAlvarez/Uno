@@ -42,7 +42,7 @@ module tigrinho(
                 end
                 
                 validar_carta: begin
-                    if (lfsr_out < 8'd108 && !cartas_usadas[lfsr_out]) begin
+                    if (!carta_valida && lfsr_out < 8'd108 && !cartas_usadas[lfsr_out]) begin
                         cartas_usadas[lfsr_out] <= 1'b1;
                         carta_sorteada_id <= lfsr_out[6:0];
                         carta_valida <= 1;
