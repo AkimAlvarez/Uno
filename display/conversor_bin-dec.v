@@ -22,6 +22,11 @@ module QuantityConversor (
             // se por algum motivo passar de 99, trava o display em 99
             display_out_dez = TRAVA_DEZ;
             display_out_unid = TRAVA_UNID;
+
+            // impede a criação de latch setando as variáveis que não são usadas aqui
+            calc_dez = 7'd0;
+            calc_unid = 7'd0;
+
         end else begin
             // Faz a divisão e o resto
             calc_dez = qtd_cards / 7'd10;
