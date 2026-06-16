@@ -7,7 +7,18 @@ module tigrinho(
     wire[7:0] lfsr_out;
     wire lfsr_done;
 
-    reg [107:0] cartas_usadas;   
+    reg  [7:0] entropy_counter = 8'd0;
+    reg        rst_d;
+    wire       reset_release = rst_d & ~rst;            // borda de descida do rst
+    wire [7:0] seed_value    = (entropy_counter == 8'hFF) // evita o estado travado
+                               ? 8'h01 : entropy_counter; // do LFSR XNOR de 8 bits
+
+    always @(posedge clk) begin
+        entropy_counter <= entropy_counter + 8'd1;       // ignora o rst
+        rst_d           <= rst;
+    end
+
+    reg [107:0] cartas_usadas;
 
     reg [1:0] current_state, next_state;
 
@@ -21,8 +32,8 @@ module tigrinho(
     LFSR #(.NUM_BITS(8)) embaralhador(
         .i_Clk(clk),
         .i_Enable(1'b1),
-        .i_Seed_DV(1'd0),
-        .i_Seed_Data(8'b0),
+        .i_Seed_DV(reset_release),
+        .i_Seed_Data(seed_value),
         .o_LFSR_Data(lfsr_out),
         .o_LFSR_Done(lfsr_done)
     );
@@ -42,7 +53,7 @@ module tigrinho(
                 end
                 
                 validar_carta: begin
-                    if (lfsr_out < 8'd108 && !cartas_usadas[lfsr_out]) begin
+                    if (!carta_valida && lfsr_out < 8'd108 && !cartas_usadas[lfsr_out]) begin
                         cartas_usadas[lfsr_out] <= 1'b1;
                         carta_sorteada_id <= lfsr_out[6:0];
                         carta_valida <= 1;
