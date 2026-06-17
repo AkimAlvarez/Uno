@@ -126,9 +126,6 @@
         <mxCell id="PfTQAbMGCp2KErXexQ-j-41" value="S_DEAL" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="200" y="600" width="120" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="PfTQAbMGCp2KErXexQ-j-50" value="- zera&amp;nbsp; ponteiros, sinais" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
-          <mxGeometry x="140" y="310" width="120" height="30" as="geometry" />
-        </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
