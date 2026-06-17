@@ -1,94 +1,132 @@
-`timescale 1ns / 1ps // Escala de tempo para a simulacao
+`timescale 1ns / 1ps
+
+// Testbench do dealer com RAM/embaralhamento.
+//   1) Reset (RESET_HOLD parametrizavel -> muda a semente do shuffle).
+//   2) Espera 'ready' (borda que indica fim do embaralhamento).
+//   3) Distribui as 108 cartas e confere que formam o baralho completo
 
 module tb_dealer;
-    reg clk;
-    reg rst;
-    reg draw;
-    wire draw_action;
-    wire [6:0] carta_sorteada_id;
-    wire [9:0] carta_sorteada;
 
-    integer cartas_compradas;
+    reg        clk;
+    reg        rst;
+    reg        draw;
 
-    // Quantas cartas o teste vai comprar de forma encadeada
-    localparam TOTAL_CARTAS = 5;
+    wire        ready;
+    wire        busy;
+    wire        draw_action;
+    wire [7:0]  carta_ponteiro;
+    wire [9:0]  carta_sorteada;
 
     integer reset_hold;
+    integer i, k, c, v;
+    integer total;
+
+    reg [7:0] exp_hist [0:1023];
+    reg [7:0] act_hist [0:1023];
+    reg [3:0] cor;
 
     top uut (
-        .clk(clk),
-        .rst(rst),
-        .draw(draw),
-        .draw_action(draw_action),
-        .carta_sorteada_id(carta_sorteada_id),
-        .carta_sorteada(carta_sorteada)
+        .clk            (clk),
+        .rst            (rst),
+        .draw           (draw),
+        .ready          (ready),
+        .busy           (busy),
+        .draw_action    (draw_action),
+        .carta_ponteiro (carta_ponteiro),
+        .carta_sorteada (carta_sorteada)
     );
 
-    always #10 clk = ~clk; // Clock de 50MHz
+    always #10 clk = ~clk; // 50 MHz
 
+    // ============================================================
+    // Monta o multiconjunto esperado (baralho completo de UNO)
+    // ============================================================
+    task montar_esperado;
+        begin
+            for (k = 0; k < 1024; k = k + 1) begin
+                exp_hist[k] = 8'd0;
+                act_hist[k] = 8'd0;
+            end
+            for (c = 0; c < 4; c = c + 1) begin
+                case (c)
+                    0: cor = 4'b1000; // vermelho
+                    1: cor = 4'b0100; // verde
+                    2: cor = 4'b0010; // azul
+                    3: cor = 4'b0001; // amarelo
+                endcase
+                exp_hist[{2'b00, 4'd0, cor}] = exp_hist[{2'b00, 4'd0, cor}] + 8'd1;       // zero (1x)
+                for (v = 1; v <= 9; v = v + 1)                                            // 1..9 (2x)
+                    exp_hist[{2'b00, v[3:0], cor}] = exp_hist[{2'b00, v[3:0], cor}] + 8'd2;
+                exp_hist[{2'b01, 4'b1010, cor}] = exp_hist[{2'b01, 4'b1010, cor}] + 8'd2; // bloqueio
+                exp_hist[{2'b01, 4'b1011, cor}] = exp_hist[{2'b01, 4'b1011, cor}] + 8'd2; // inversao
+                exp_hist[{2'b01, 4'b1100, cor}] = exp_hist[{2'b01, 4'b1100, cor}] + 8'd2; // +2
+            end
+            exp_hist[{2'b10, 4'b1101, 4'b0000}] = 8'd4; // coringa muda cor
+            exp_hist[{2'b10, 4'b1110, 4'b0000}] = 8'd4; // coringa +4
+        end
+    endtask
+
+    // ============================================================
+    // Roteiro
+    // ============================================================
     initial begin
         clk  = 0;
         rst  = 1;
         draw = 0;
-        cartas_compradas = 0;
 
         if (!$value$plusargs("RESET_HOLD=%d", reset_hold))
-            reset_hold = 50; // padrao
+            reset_hold = 50;
+
+        montar_esperado;
 
         $display("=================================================");
-        $display("   INICIANDO SIMULACAO DO BARALHO DE UNO         ");
-        $display("   RESET segurado por %0d ns (define a semente)  ", reset_hold);
+        $display("  DEALER UNO - EMBARALHA RAM + DISTRIBUI          ");
+        $display("  RESET segurado por %0d ns (define a semente)    ", reset_hold);
         $display("=================================================");
 
-        // Mantem o RESET pressionado por 'reset_hold' ns; o instante
-        // em que ele e solto define a semente do LFSR (entropia).
+        // Reset; o instante em que ele e solto define a semente do LFSR
         #(reset_hold);
         @(posedge clk);
         rst = 0;
-        @(posedge clk);
 
-        // Dispara a primeira compra; o restante encadeia sozinho
-        $display("\n---> Solicitando primeira compra");
-        solicitar_compra();
-    end
+        @(posedge ready);
+        $display("[%0t] Embaralhamento concluido (ready=1). Distribuindo...\n", $time);
 
-    // A descida de draw_action marca o "final da geracao" de uma carta pelo dealer.
+        // Distribui as 108 cartas. O "controlador" so dispara um PULSO de draw
+        // quando o dealer esta livre (busy=0); cada pulso entrega uma carta.
+        for (i = 0; i < 108; i = i + 1) begin
+            wait (busy == 1'b0);                    // espera o dealer ficar livre
+            @(posedge clk); draw = 1'b1;
+            @(posedge clk); draw = 1'b0;            // pulso de 1 ciclo
 
-    always @(negedge draw_action) begin
-        if (!rst) begin
-            // 1 ciclo de latencia da LUT sincrona para
-            // garantir 'carta_sorteada' estavel na saida do TOP
-            @(posedge clk);
+            @(posedge draw_action);                 // carta entregue
+            act_hist[carta_sorteada] = act_hist[carta_sorteada] + 8'd1;
 
-            cartas_compradas = cartas_compradas + 1;
+            if (i < 12)
+                $display("  carta %0d: ptr=%0d  bits=%b  (cat=%b val=%b cor=%b)",
+                         i, carta_ponteiro, carta_sorteada,
+                         carta_sorteada[9:8], carta_sorteada[7:4], carta_sorteada[3:0]);
+            else if (i == 12)
+                $display("  ... (demais cartas omitidas)");
+        end
 
-            $display("\n   [SUCESSO] Carta %0d comprada!", cartas_compradas);
-            $display("   > Posicao Fisica (ID): %0d", carta_sorteada_id);
-            $display("   > Bits Crus da Carta : %b", carta_sorteada);
-            $display("   > Interpretacao      : Categoria [%b] | Valor [%b] | Cor [%b]",
-                      carta_sorteada[9:8], carta_sorteada[7:4], carta_sorteada[3:0]);
-
-            if (cartas_compradas < TOTAL_CARTAS) begin
-                // Encadeia a proxima compra a partir da borda atual
-                solicitar_compra();
-            end else begin
-                #40;
-                $display("\n=================================================");
-                $display("               TESTE FINALIZADO                  ");
-                $display("=================================================");
-                $finish;
+        // Confere que o baralho distribuido bate com o esperado
+        total = 0;
+        for (k = 0; k < 1024; k = k + 1) begin
+            if (act_hist[k] !== exp_hist[k]) begin
+                $display("  [FALHA] codigo %b: esperado=%0d distribuido=%0d",
+                         k[9:0], exp_hist[k], act_hist[k]);
+                total = total + 1;
             end
         end
+
+        $display("\n=================================================");
+        if (total == 0)
+            $display("  [OK] 108 cartas distribuidas = baralho completo");
+        else
+            $display("  [ERRO] %0d divergencias no multiconjunto", total);
+        $display("=================================================");
+        $finish;
     end
-
-
-    task solicitar_compra;
-        begin
-            @(posedge clk);
-            draw = 1'b1;
-            @(posedge clk);
-            draw = 1'b0;
-        end
-    endtask
 
 endmodule
