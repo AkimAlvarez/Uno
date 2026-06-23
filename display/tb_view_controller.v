@@ -105,20 +105,6 @@ module tb_view_controller();
         end
     endtask
 
-    // dispara um pulso de 1 ciclo de clock para FSMs
-    task pulse_signal;
-        output sig;
-        input [8*20:1] signal_name;
-        begin
-            $display("[%0t] [FSM] Disparando pulso em: %s", $time, signal_name);
-            @(posedge clk);
-            sig = 1;
-            @(posedge clk);
-            sig = 0;
-        end
-    endtask
-
-    // roteiro de simulação
 
     initial begin
         // inicialização de todas as variáveis
@@ -134,65 +120,82 @@ module tb_view_controller();
         apply_reset();
         #100;
 
-        // testa a transição de IDLE para NORMAL_GAME no LedAnimator
-        pulse_signal(start_game, "start_game");
-        #200;
+        // ----------------------------------------------------------------
+        // INICIO DO JOGO: start_game precisa ficar ALTO durante a animacao
+        // de inicio (o LedAnimator conta piscadas em bordas do tick ate ir
+        // para TURNOS; o DisplayAnimator vai para NORMAL_GAME).
+        // ----------------------------------------------------------------
+        $display("[%0t] [START] Segurando start_game ate as FSMs sairem do IDLE", $time);
+        @(posedge clk); start_game = 1;
+        #1000;                              // ~6 periodos de tick (BIT_ALVO=2)
+        @(posedge clk); start_game = 0;
+        #100;
 
-        // testa os decoders com todas as especiais
-        test_cards(10'b00_0000_1000, 10'b00_1001_0100, "Player: Vermelho 0 | Top: Verde 9");
+        // ----------------------------------------------------------------
+        // DECODERS: agora em NORMAL_GAME o display do jogador deve mostrar
+        // a carta. A carta da mesa (top) nao depende da FSM.
+        // ----------------------------------------------------------------
+        test_cards(10'b00_0001_1000, 10'b00_1001_0100, "Player: Vermelho 1 | Top: Verde 9");
         test_cards(10'b01_1010_0010, 10'b01_1011_0001, "Player: Azul Bloqueio | Top: Amarelo Inverso");
         test_cards(10'b01_1100_1000, 10'b10_1101_0000, "Player: Vermelho +2 | Top: Coringa sem cor");
         test_cards(10'b10_1110_0000, 10'b10_1110_0000, "Player: Coringa +4  | Top: Coringa +4");
 
-        // testa os limites do algoritmo de divisão (conversor_bin-dec)
+        // CONVERSOR (BCD da quantidade de cartas) - nao depende da FSM
         test_quantities(7'd0,  7'd0);   // limite inferior
         test_quantities(7'd9,  7'd5);   // apenas unidades
         test_quantities(7'd10, 7'd19);  // virada da dezena
         test_quantities(7'd55, 7'd42);  // números intermediários
-        test_quantities(7'd99, 7'd108); // limite superior absoluto do Uno
+        test_quantities(7'd99, 7'd108); // acima do limite -> trava em 99
 
-        // testes do led_animator
-        $display("[%0t] [LED_ANIM] Testando mudança de turno", $time);
-        player_turn = 1; cpu_turn = 0; #200; // LEDs verdes acesos
-        player_turn = 0; cpu_turn = 1; #200; // LEDs vermelhos acesos
+        // ----------------------------------------------------------------
+        // TURNOS: verde para o jogador, vermelho para a CPU
+        // ----------------------------------------------------------------
+        $display("[%0t] [LED_ANIM] Turno do PLAYER (verdes)", $time);
+        player_turn = 1; cpu_turn = 0; #400;
+        $display("[%0t] [LED_ANIM] Turno da CPU (vermelhos)", $time);
+        player_turn = 0; cpu_turn = 1; #400;
 
-        $display("[%0t] [LED_ANIM] Testando Movimento Invalido (Piscada Dupla)", $time);
+        // ----------------------------------------------------------------
+        // JOGADA INVALIDA: piscada dupla dos vermelhos e volta pra TURNOS
+        // ----------------------------------------------------------------
+        $display("[%0t] [LED_ANIM] Jogada invalida (piscada dupla)", $time);
         player_turn = 1; cpu_turn = 0;
-        pulse_signal(invalid_move, "invalid_move");
-        #3000;
+        @(posedge clk); invalid_move = 1;
+        @(posedge clk); invalid_move = 0;
+        #2000;
 
-        // testes do estado de troca de cor
-        $display("[%0t] [DISP_ANIM] Testando menu de escolha de cor (Blink Mode)", $time);
+        // ----------------------------------------------------------------
+        // MENU DE COR: DisplayAnimator entra em CHOOSING_COLOR (pisca a cor)
+        // ----------------------------------------------------------------
+        $display("[%0t] [DISP_ANIM] Menu de escolha de cor (blink)", $time);
         choosing_color = 1;
-        color_selector = 4'b1000; // vermelho
-        #600; // Espera alguns ciclos de clk para ver a animação piscando
+        color_selector = 4'b1000; #800; // vermelho
+        color_selector = 4'b0100; #800; // verde
+        color_selector = 4'b0010; #800; // azul
+        color_selector = 4'b0001; #800; // amarelo
+        choosing_color = 0; #400;
 
-        color_selector = 4'b0100; // verde
-        #600;
+        // ----------------------------------------------------------------
+        // VITORIA: cobrinha verde por ~5s e volta para IDLE
+        // ----------------------------------------------------------------
+        $display("[%0t] [LED_ANIM] Vitoria do PLAYER (cobrinha verde)", $time);
+        @(posedge clk); win_game = 1;
+        @(posedge clk); win_game = 0;
+        #12000;                             // tempo para a animacao concluir
 
-        color_selector = 4'b0010; // azul
-        #600;
-
-        color_selector = 4'b0001; // amarelo
-        #600;
-
-        choosing_color = 0; // sai do menu
-        #200;
-
-        // testes do fim do jogo
-        $display("[%0t] [LED_ANIM] Animacao de Vitoria (Player Ganha)", $time);
-        pulse_signal(win_game, "win_game");
-        #4000; // animação de vitória nos LEDs
-
-        // aplica reset para voltar ao IDLE e testar a derrota
+        // ----------------------------------------------------------------
+        // DERROTA: reinicia, recomeca o jogo e dispara lose_game
+        // ----------------------------------------------------------------
         apply_reset();
-        pulse_signal(start_game, "start_game"); #100;
+        @(posedge clk); start_game = 1; #1000; @(posedge clk); start_game = 0; #100;
+        player_turn = 1; cpu_turn = 0; #200;
 
-        $display("[%0t] [LED_ANIM] Animacao de Derrota (CPU Ganha)", $time);
-        pulse_signal(lose_game, "lose_game");
-        #4000; // animação de derrota nos LEDs
+        $display("[%0t] [LED_ANIM] Derrota do PLAYER (cobrinha vermelha)", $time);
+        @(posedge clk); lose_game = 1;
+        @(posedge clk); lose_game = 0;
+        #12000;
 
-        $display("fim do teste")
+        $display("fim do teste");
         $stop;
     end
 
