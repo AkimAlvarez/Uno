@@ -1,4 +1,4 @@
-module player (
+module cpu (
     input wire clk, 
     input wire reset, 
     // Sinais do Controlador/Dealer
@@ -7,12 +7,7 @@ module player (
     input wire ready,
     input wire remove,
     input wire meu_turno, 
-    // Sinais do Jogador Humano (Botões)
-    input wire next_pulse,
-    input wire play_pulse,
-    input wire btn_comprar,
-    // Sinais de Validação
-    input wire carta_valida,
+    input wire [9:0] carta_topo,
     // Saídas
     output wire sinal_comprar_carta, 
     output wire sinal_jogar_carta, 
@@ -24,16 +19,26 @@ module player (
     localparam  S_IDLE        = 4'd0,
                 S_PREPARE     = 4'd1,
                 S_WAIT        = 4'd2,
-                VALIDAR       = 4'd3,
-                COMPRAR_CARTA = 4'd4,
-                JOGAR_CARTA   = 4'd5,
-                FIM_TURNO     = 4'd6;
+                S_AVALIAR     = 4'd3,
+                S_PROXIMA     = 4'd4,
+                COMPRAR_CARTA = 4'd5,
+                JOGAR_CARTA   = 4'd6,
+                FIM_TURNO     = 4'd7;
     
     reg [9:0] mao [0:127];
     reg [6:0] n_player;
     reg [6:0] ponteiro_sel;
 
     reg [3:0] estado_atual, proximo_estado;
+
+    //VALIDAÇÃO
+    wire[9:0] carta_atual = mao[ponteiro_sel];
+
+    wire mesma_cor  = |(carta_atual[3:0] & carta_topo[3:0]);
+    wire mesmo_valor    = (carta_atual[7:4] == carta_topo[7:4]);
+    wire eh_coringa = (carta_atual[9:8]==2'b10);
+
+    wire carta_valida = mesma_cor | mesmo_valor | eh_coringa;
 
     always @(posedge clk or posedge reset) begin
         if (reset) begin
@@ -65,11 +70,11 @@ module player (
                 end
             end
 
-            // 3. Navegação da Mão (Rolar as cartas)
-            if (next_pulse && estado_atual == S_WAIT && n_player > 0) begin
-                if (ponteiro_sel == n_player - 1)
+            // 3. Procurar a carta valida
+            if (estado_atual == S_WAIT && meu_turno) begin
                     ponteiro_sel <= 7'd0;
-                else
+            end
+            else if (estado_atual == S_PROXIMA)begin
                     ponteiro_sel <= ponteiro_sel + 7'd1;
             end
         end
@@ -91,18 +96,26 @@ module player (
             
             S_WAIT: begin
                 if (meu_turno) begin
-                    if (play_pulse)
-                        proximo_estado = VALIDAR;
-                    else if (btn_comprar)
-                        proximo_estado = COMPRAR_CARTA;
+                    if (n_player>0)
+                        proximo_estado = S_AVALIAR;
+                    else
+                        proximo_estado = FIM_TURNO;
                 end
             end
 
-            VALIDAR: begin
+            S_AVALIAR: begin
                 if (carta_valida)
                     proximo_estado = JOGAR_CARTA;
-                else
-                    proximo_estado = S_WAIT;
+                else begin
+                    if(ponteiro_sel == n_player -1)
+                        proximo_estado = COMPRAR_CARTA;
+                    else
+                        proximo_estado = S_PROXIMA;
+                end
+            end
+
+            S_PROXIMA: begin
+                    proximo_estado = S_AVALIAR;
             end
 
             COMPRAR_CARTA: begin
@@ -124,7 +137,7 @@ module player (
     assign sinal_comprar_carta = (estado_atual == COMPRAR_CARTA);
     assign sinal_jogar_carta   = (estado_atual == JOGAR_CARTA);
     assign fim_turno_out       = (estado_atual == FIM_TURNO);
-    assign carta_escolhida     = mao[ponteiro_sel];
+    assign carta_escolhida     = carta_atual;
     assign num_cartas_mao      = n_player;
 
 
