@@ -24,3 +24,5 @@ work/
 transcript
 *.wlf
 modelsim.ini
+
+.vscode/
