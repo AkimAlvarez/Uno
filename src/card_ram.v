@@ -6,10 +6,10 @@ module card_ram #(
     parameter DEPTH     = 128,
     parameter INIT_FILE = "uno_deck.mif"
 )(
-    input  wire                 clock,
-    input  wire                 we,
-    input  wire [ADDR_BITS-1:0] address,
-    input  wire [DATA_BITS-1:0] data_in,
+    input wire clock,
+    input wire we,
+    input wire [ADDR_BITS-1:0] address,
+    input wire [DATA_BITS-1:0] data_in,
     output wire [DATA_BITS-1:0] q
 );
 
