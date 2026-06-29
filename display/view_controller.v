@@ -1,6 +1,6 @@
 // controlador geral para a visualização do jogo
 
-module ViewController (
+module view_controller (
     // entradas do sistema
     input clk,
     input reset,

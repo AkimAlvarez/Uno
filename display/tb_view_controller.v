@@ -34,7 +34,7 @@ module tb_view_controller();
 
     // instanciação do view controller (top)
 
-    ViewController dut (
+    view_controller dut (
         .clk(clk),
         .reset(reset),
         .player_card(player_card),

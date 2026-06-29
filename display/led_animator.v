@@ -72,6 +72,10 @@ module LedAnimator (
                             ledg <= LEDG_OFF; // desliga os verdes
                             ledr <= LEDR_ON;  // liga vermelhos
                         end
+                        else begin // ninguem joga = tudo desligado
+                            ledg <= LEDG_OFF;
+                            ledr <= LEDR_OFF;
+                        end
                     end
                 end
 
