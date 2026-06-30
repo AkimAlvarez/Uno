@@ -188,11 +188,11 @@ module controlador #(
             end
 
             S_PICK_EVAL: begin
-                if (is_num(carta_sorteada)) begin // avalia se a carta e valida
+                if (is_num(carta_sorteada)) begin 
                     top_card <= carta_sorteada;
                     turn <= P_PLAYER; 
                     state <= S_GRANT;
-                end else begin // caso nao seja, ela e descartada
+                end else begin 
                     disc_card <= carta_sorteada;
                     disc_ret <= S_PICK; 
                     state <= S_DISC_REQ;
@@ -209,7 +209,7 @@ module controlador #(
                 disp_ret <= S_WAIT_MOVE;
                 if (turn == P_CPU) begin
                     state <= S_WAIT_DISP;
-                    inicia_2s <= 1'b1;
+                    inicia_2s <= 1'b1; // Dá partida no temporizador de 2s para a CPU pensar
                 end else begin
                     state <= S_WAIT_MOVE;
                 end
@@ -228,10 +228,10 @@ module controlador #(
                     p_meu_turno <= 1'b0; 
                     c_meu_turno <= 1'b0;
                     state <= S_COMMIT;
-                end else if (active_comprar) begin // draw
+                end else if (active_comprar) begin 
                     p_meu_turno <= 1'b0;
                     c_meu_turno <= 1'b0;
-                    if (pen_pending) state <= S_PEN; // subrotina de penalidade
+                    if (pen_pending) state <= S_PEN; 
                     else begin 
                         draw_dest <= D_CAP;
                         draw_ret <= S_DRAW1_EVAL; 
@@ -247,10 +247,10 @@ module controlador #(
                 state <= S_DISC_REQ; 
             end
 
-            S_COMMIT_TOP: begin // avalia prox estado baseado na carta jogada
-                if (is_wild(played_card)) begin // se for carta de escolha de escolher cor
+            S_COMMIT_TOP: begin 
+                if (is_wild(played_card)) begin 
                     if (turn == P_CPU) begin
-                        top_card <= {played_card[9:4], cpu_cor}; // mantem a carta e altera apenas a cor
+                        top_card <= {played_card[9:4], cpu_cor}; 
                         if (played_from_hand) c_remove <= 1'b1;
                         state <= S_APPLY;
                     end else begin
@@ -270,7 +270,7 @@ module controlador #(
             S_WAIT_COLOR: begin
                 choosing_color <= 1'b1;
                 if (play_press) begin
-                    top_card <= {played_card[9:4], color_selector}; // mantem a carta e altera apenas a cor
+                    top_card <= {played_card[9:4], color_selector}; 
                     if (played_from_hand) p_remove <= 1'b1;
                     choosing_color <= 1'b0;
                     state <= S_APPLY;
@@ -282,7 +282,7 @@ module controlador #(
                 if (is_skiprev(played_card)) begin
                     skip_action <= 1'b1;
                     disp_ret <= S_NEXT;
-                    state <= S_WAIT_DISP; // a vez volta para quem jogou
+                    state <= S_WAIT_DISP; 
                     inicia_2s <= 1'b1;
                 end else if (is_p2(played_card)) begin
                     pen_pending <= 1'b1;
@@ -360,14 +360,14 @@ module controlador #(
             end
 
             // sub-rotina: comprar uma carta do dealer
-            S_DRAW_REQ: begin   // verifica a disponibilidade do dealer
+            S_DRAW_REQ: begin   
                 if (!busy) begin 
                     draw <= 1'b1;
                     state <= S_DRAW_PULSE; 
                 end
             end
 
-            S_DRAW_PULSE: begin // envia o pulso para o dealer e espera a prox carta
+            S_DRAW_PULSE: begin 
                 draw <= 1'b0;
                 state <= S_DRAW_RX; 
             end
