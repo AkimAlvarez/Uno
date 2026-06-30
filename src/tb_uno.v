@@ -7,24 +7,59 @@ module tb_uno;
     reg btn_next, btn_play, btn_draw; // ativos em baixo (1 = solto)
     reg [3:0] color_selector;
 
-    wire [9:0] top_card;
-    wire player_turn, cpu_turn;
-    wire invalid_move, skip_action, draw_action_disp, choosing_color;
-    wire win, lose;
-    wire [6:0] n_player, n_cpu;
+    // Fios físicos reais exigidos pelo módulo top
+    wire [6:0] out_cor_player, out_val_player;
+    wire [6:0] out_cor_top, out_val_top;
+    wire [6:0] out_player_unid, out_player_dez;
+    wire [6:0] out_cpu_unid, out_cpu_dez;
+    wire [17:0] ledr;
+    wire [8:0] ledg;
 
-    integer acoes; // quantas vezes o player agiu
+    integer acoes;      // quantas vezes o player agiu
     integer reset_hold; // ns extras de reset (varia a semente do shuffle)
 
-    top_uno #(.HAND_SIZE(7)) uut (
-        .clk(clk), .rst(rst),
-        .btn_next(btn_next), .btn_play(btn_play), .btn_draw(btn_draw),
+    // Instância do projeto inteiro
+    top #(.HAND_SIZE(7)) uut (
+        .clk(clk), 
+        .rst(rst),
+        .btn_next(btn_next), 
+        .btn_play(btn_play), 
+        .btn_draw(btn_draw),
         .color_selector(color_selector),
-        .top_card(top_card), .player_turn(player_turn), .cpu_turn(cpu_turn),
-        .invalid_move(invalid_move), .skip_action(skip_action),
-        .draw_action_disp(draw_action_disp), .choosing_color(choosing_color),
-        .win(win), .lose(lose), .n_player(n_player), .n_cpu(n_cpu)
+        .out_cor_player(out_cor_player), 
+        .out_val_player(out_val_player),
+        .out_cor_top(out_cor_top), 
+        .out_val_top(out_val_top),
+        .out_player_unid(out_player_unid), 
+        .out_player_dez(out_player_dez),
+        .out_cpu_unid(out_cpu_unid), 
+        .out_cpu_dez(out_cpu_dez),
+        .ledr(ledr), 
+        .ledg(ledg)
     );
+
+    // ====================================================================
+    // REFERÊNCIAS HIERÁRQUICAS (ESPIONAGEM DE SINAIS INTERNOS)
+    // Como o 'top' não exporta mais a lógica pura do jogo para os pinos, 
+    // nós lemos os fios diretamente de dentro da instância 'uut'.
+    // ====================================================================
+    wire [9:0] top_card       = uut.top_card;
+    wire       player_turn    = uut.player_turn;
+    wire       cpu_turn       = uut.cpu_turn;
+    wire       invalid_move   = uut.invalid_move;
+    wire       skip_action    = uut.skip_action;
+    wire       choosing_color = uut.choosing_color;
+    wire       win            = uut.win;
+    wire       lose           = uut.lose;
+    wire [6:0] n_player       = uut.n_player;
+    wire [6:0] n_cpu          = uut.n_cpu;
+
+    // ====================================================================
+    // ACELERAÇÃO DE SIMULAÇÃO DO TEMPORIZADOR
+    // Altera o BIT_ALVO de 22 para 2 para não termos que esperar 
+    // os 2 segundos (100 milhões de ciclos) a cada animação no ModelSim.
+    // ====================================================================
+    defparam uut.div_clk.BIT_ALVO = 2;
 
     always #10 clk = ~clk; // clock de 50MHz
 
@@ -32,7 +67,8 @@ module tb_uno;
     task aperta_draw;
         begin
             @(posedge clk); btn_draw = 1'b0;
-            @(posedge clk); btn_draw = 1'b1;
+            @(posedge clk);
+            btn_draw = 1'b1;
         end
     endtask
 
@@ -40,12 +76,14 @@ module tb_uno;
     task aperta_play;
         begin
             @(posedge clk); btn_play = 1'b0;
-            @(posedge clk); btn_play = 1'b1;
+            @(posedge clk);
+            btn_play = 1'b1;
         end
     endtask
 
     initial begin
-        clk = 0; rst = 1;
+        clk = 0;
+        rst = 1;
         btn_next = 1'b1; btn_play = 1'b1; btn_draw = 1'b1;
         color_selector = 4'b1000; // vermelho
         acoes = 0;
@@ -54,22 +92,25 @@ module tb_uno;
         $display("=================================================");
         $display("   PARTIDA DE UNO - player sempre compra         ");
         $display("=================================================");
-
+        
         // reset sincrono
         repeat (4) @(posedge clk);
         #(reset_hold);
         rst = 0;
-
+        
         // espera a distribuicao e a carta inicial (vez do player)
         wait (player_turn == 1'b1);
         #1;
         $display("[%0t] distribuicao: n_player=%0d n_cpu=%0d topo=%b", $time, n_player, n_cpu, top_card);
+        
         if (n_player !== 7'd7 || n_cpu !== 7'd7) $display("  [FALHA] distribuicao incorreta");
         else $display("  [OK] 7 cartas para cada");
+        
         if (top_card[9:8] !== 2'b00) $display("  [FALHA] carta inicial nao e numero");
         else $display("  [OK] carta inicial e numero");
 
-        // o player so compra; a cpu joga sozinha. confirma a cor quando pedir coringa
+        // o player so compra; a cpu joga sozinha.
+        // confirma a cor quando pedir coringa
         while (!win && !lose && acoes < 400) begin
             #4000; // tempo p/ o controlador processar a acao anterior (e o turno da cpu)
             if (choosing_color) begin

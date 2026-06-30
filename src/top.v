@@ -1,30 +1,73 @@
 `timescale 1ns / 1ps
 
-module top_uno #(
+module top #(
     parameter HAND_SIZE = 7
 )(
-    input wire clk,
-    input wire rst,
+    // Clock principal
+    input wire CLOCK_50,
 
-    // botoes
-    input wire btn_next,
-    input wire btn_play,
-    input wire btn_draw,
-    input wire [3:0] color_selector,
+    // Chaves (Switches)
+    // SW[0]    -> Reset
+    // SW[4:1]  -> Seletor de cor (one-hot)
+    input wire [17:0] SW,
 
-    // saidas de jogo (iriam para o display)
-    output wire [9:0] top_card,
-    output wire player_turn,
-    output wire cpu_turn,
-    output wire invalid_move,
-    output wire skip_action,
-    output wire draw_action_disp,
-    output wire choosing_color,
-    output wire win,
-    output wire lose,
-    output wire [6:0] n_player,
-    output wire [6:0] n_cpu
+    // Botoes (Keys - ativos em baixo)
+    // KEY[0] -> Next
+    // KEY[1] -> Play
+    // KEY[2] -> Draw
+    input wire [3:0] KEY,
+
+    // Displays de 7 Segmentos
+    output wire [6:0] HEX7, // Cor Player
+    output wire [6:0] HEX6, // Valor Player
+    output wire [6:0] HEX5, // Cor Topo
+    output wire [6:0] HEX4, // Valor Topo
+    output wire [6:0] HEX3, // Qtd Cartas Player (Dez)
+    output wire [6:0] HEX2, // Qtd Cartas Player (Unid)
+    output wire [6:0] HEX1, // Qtd Cartas CPU (Dez)
+    output wire [6:0] HEX0, // Qtd Cartas CPU (Unid)
+
+    // LEDs
+    output wire [17:0] LEDR,
+    output wire [8:0] LEDG
 );
+
+    // Mapeamento dos botoes e chaves para fios internos
+    wire clk            = CLOCK_50;
+    wire rst            = SW[0];
+    wire [3:0] color_selector = SW[4:1];
+    wire btn_next       = KEY[0];
+    wire btn_play       = KEY[1];
+    wire btn_draw       = KEY[2];
+
+    // Sinais internos temporizacao e reset
+    wire rst_sync;
+    wire tick_animacao;
+    wire inicia_2s;
+    wire tempo_2s;
+
+    // Instanciar sincronizador de reset
+    ResetSynchronizer #(.STAGES(4)) sync_reset (
+        .clk(clk),
+        .reset(rst),
+        .reset_sync(rst_sync)
+    );
+
+    // Instanciar divisor de clock para o temporizador e display
+    ClockDiv #(.BIT_ALVO(22)) div_clk (
+        .clk(clk),
+        .reset(rst_sync),
+        .tick_out(tick_animacao)
+    );
+
+    // Instanciar o temporizador de 2 segundos
+    timer_2s temporizador (
+        .clk(clk),
+        .reset(rst_sync),
+        .tick(tick_animacao),
+        .inicia_2s(inicia_2s),
+        .tempo_2s(tempo_2s)
+    );
 
     // dealer <-> ram
     wire [6:0] ram_addr;
@@ -53,11 +96,15 @@ module top_uno #(
     wire       c_vazio;
     wire       c_meu_turno, c_deal, c_remove;
 
-    // veredito de validade (controlador -> player/cpu)
+    // veredito de validade e estados do display
     wire       carta_valida;
+    wire [9:0] top_card;
+    wire       player_turn, cpu_turn, invalid_move, skip_action;
+    wire       draw_action_disp, choosing_color, win, lose;
+    wire [6:0] n_player, n_cpu;
 
     dealer_fsm dealer (
-        .clk(clk), .rst(rst), .draw(draw),
+        .clk(clk), .rst(rst_sync), .draw(draw),
         .discard_in(discard_in), .discard_we(discard_we),
         .ram_addr(ram_addr), .ram_we(ram_we), .ram_data(ram_data), .ram_q(ram_q),
         .ready(ready), .busy(busy), .draw_action(draw_action),
@@ -69,7 +116,7 @@ module top_uno #(
     );
 
     player jogador (
-        .clk(clk), .reset(rst),
+        .clk(clk), .reset(rst_sync),
         .meu_turno(p_meu_turno),
         .next_pulse(p_next_pulse), .play_pulse(p_play_pulse), .draw_pulse(p_draw_pulse),
         .carta_valida(carta_valida),
@@ -79,7 +126,7 @@ module top_uno #(
     );
 
     cpu maquina (
-        .clk(clk), .reset(rst),
+        .clk(clk), .reset(rst_sync),
         .meu_turno(c_meu_turno), .carta_valida(carta_valida),
         .deal(c_deal), .card_in(carta_sorteada), .remove(c_remove),
         .sinal_jogar(c_jogar), .sinal_comprar(c_comprar), .fim_turno(c_fim),
@@ -87,23 +134,61 @@ module top_uno #(
     );
 
     controlador #(.HAND_SIZE(HAND_SIZE)) ctrl (
-        .clk(clk), .reset(rst),
+        .clk(clk), .reset(rst_sync),
         .btn_next(btn_next), .btn_play(btn_play), .btn_draw(btn_draw),
         .color_selector(color_selector),
         .ready(ready), .busy(busy), .draw_action(draw_action), .carta_sorteada(carta_sorteada),
         .draw(draw), .discard_in(discard_in), .discard_we(discard_we),
+        
         .p_jogar(p_jogar), .p_comprar(p_comprar), .p_invalido(p_invalido), .p_fim(p_fim),
         .player_card(player_card), .n_player(n_player), .p_vazio(p_vazio),
         .p_meu_turno(p_meu_turno), .p_next_pulse(p_next_pulse), .p_play_pulse(p_play_pulse),
         .p_draw_pulse(p_draw_pulse), .p_deal(p_deal), .p_remove(p_remove),
+        
         .c_jogar(c_jogar), .c_comprar(c_comprar), .c_fim(c_fim),
         .cpu_card(cpu_card), .cpu_cor(cpu_cor), .n_cpu(n_cpu), .c_vazio(c_vazio),
         .c_meu_turno(c_meu_turno), .c_deal(c_deal), .c_remove(c_remove),
         .carta_valida(carta_valida),
-        .anim_busy(1'b0),
+        
+        // Timer injetado
+        .tempo_2s(tempo_2s),
+        .inicia_2s(inicia_2s),
+        
+        // Display signals
         .top_card(top_card), .player_turn(player_turn), .cpu_turn(cpu_turn),
         .invalid_move(invalid_move), .skip_action(skip_action), .draw_action_disp(draw_action_disp),
         .choosing_color(choosing_color), .win(win), .lose(lose)
+    );
+
+    // modulo view_controller integrado ao top
+    view_controller v_ctrl (
+        .clk(clk),
+        .reset_sync(rst_sync),
+        .tick_animacao(tick_animacao),
+        .player_card(player_card),
+        .top_card(top_card),
+        .choosing_color(choosing_color),
+        .color_selector(color_selector),
+        .n_player(n_player),
+        .n_cpu(n_cpu),
+        .player_turn(player_turn),
+        .cpu_turn(cpu_turn),
+        .invalid_move(invalid_move),
+        .win_game(win),
+        .lose_game(lose),
+        .start_game(ready), // start da animacao de inicio associada ao baralho pronto
+        
+        // Saidas mapeadas diretamente para as portas da placa DE2-115
+        .out_cor_player(HEX7),
+        .out_val_player(HEX6),
+        .out_cor_top(HEX5),
+        .out_val_top(HEX4),
+        .out_player_dez(HEX3),
+        .out_player_unid(HEX2),
+        .out_cpu_dez(HEX1),
+        .out_cpu_unid(HEX0),
+        .ledr(LEDR),
+        .ledg(LEDG)
     );
 
 endmodule
