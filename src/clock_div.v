@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 module ClockDiv #(
-    parameter BIT_ALVO = 22 // Mantido por compatibilidade de hierarquia, mas usaremos contagem real
+    parameter BIT_ALVO = 22
 )(
     input wire clk,
     input wire reset,

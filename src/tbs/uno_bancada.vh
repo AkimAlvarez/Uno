@@ -30,6 +30,15 @@
 
     wire carta_valida;
 
+    // temporizador 2s (tick=clk -> 25 ciclos em simulacao)
+    wire inicia_2s_tb, tempo_2s_tb;
+    timer_2s tmr (
+        .clk(clk), .reset(rst),
+        .tick(clk),
+        .inicia_2s(inicia_2s_tb),
+        .tempo_2s(tempo_2s_tb)
+    );
+
     // display
     wire [9:0] top_card;
     wire player_turn, cpu_turn, invalid_move, skip_action, draw_action_disp;
@@ -74,7 +83,8 @@
         .cpu_card(cpu_card), .cpu_cor(cpu_cor), .n_cpu(n_cpu), .c_vazio(c_vazio),
         .c_meu_turno(c_meu_turno), .c_deal(c_deal), .c_remove(c_remove),
         .carta_valida(carta_valida),
-        .anim_busy(1'b0),
+        .tempo_2s(tempo_2s_tb),
+        .inicia_2s(inicia_2s_tb),
         .top_card(top_card), .player_turn(player_turn), .cpu_turn(cpu_turn),
         .invalid_move(invalid_move), .skip_action(skip_action), .draw_action_disp(draw_action_disp),
         .choosing_color(choosing_color), .win(win), .lose(lose)

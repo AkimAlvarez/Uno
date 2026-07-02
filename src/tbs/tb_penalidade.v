@@ -18,7 +18,7 @@ module tb_penalidade;
         wait (n_player == 7'd6); // player jogou o +2
 
         wait (n_cpu == 7'd9);    // CPU comprou 2 (7 -> 9)
-        repeat (5) @(posedge clk);
+        wait (player_turn == 1'b1); // aguarda o timer de 2s liberar o controlador
         if (player_turn) $display("[OK] penalidade: CPU comprou 2 e foi pulada (n_cpu=%0d)", n_cpu);
         else $display("[FALHA] penalidade: player_turn=%b n_cpu=%0d", player_turn, n_cpu);
         $finish;
