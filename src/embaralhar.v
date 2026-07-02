@@ -127,7 +127,6 @@ module LFSR #(parameter NUM_BITS)
  
   assign o_LFSR_Data = r_LFSR[NUM_BITS:1];
  
-  // Conditional Assignment (?)
   assign o_LFSR_Done = (r_LFSR[NUM_BITS:1] == i_Seed_Data) ? 1'b1 : 1'b0;
  
 endmodule // LFSR

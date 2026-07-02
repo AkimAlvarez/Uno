@@ -1,10 +1,5 @@
 `timescale 1ns / 1ps
 
-// Testbench do dealer com RAM/embaralhamento (src/dealer.v + src/card_ram.v).
-//   1) Reset (RESET_HOLD parametrizavel -> muda a semente do shuffle).
-//   2) Espera 'ready' (borda que indica fim do embaralhamento).
-//   3) Distribui as 108 cartas e confere que formam o baralho completo.
-
 module tb_dealer;
 
     reg        clk;

@@ -26,3 +26,4 @@ transcript
 modelsim.ini
 /.vscode
 /src/work_tb
+/work_tb

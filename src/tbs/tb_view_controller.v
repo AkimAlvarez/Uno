@@ -6,7 +6,7 @@ module tb_view_controller();
     reg clk;
     reg reset;
 
-    // sinais gerados localmente (antes eram internos ao DUT)
+    // sinais gerados localmente (externalizados do src/view_controller.v)
     wire reset_sync;
     wire tick_animacao;
 
@@ -36,7 +36,7 @@ module tb_view_controller();
     wire [17:0] ledr;
     wire [8:0] ledg;
 
-    // Sincronizador de reset (equivalente ao interno antigo do DUT)
+    // Sincronizador de reset
     ResetSynchronizer #(.STAGES(4)) sync_reset (
         .clk       (clk),
         .reset     (reset),
@@ -50,7 +50,7 @@ module tb_view_controller();
         .tick_out(tick_animacao)
     );
 
-    // instanciacao do view controller (src/view_controller.v)
+    // instanciacao do view controller
     view_controller dut (
         .clk           (clk),
         .reset_sync    (reset_sync),
@@ -82,20 +82,20 @@ module tb_view_controller();
     // Gerador de clock (50MHz = 20ns de periodo)
     always #10 clk = ~clk;
 
-    // tasks de teste
+    // ----------------------------------------------------------------
+    // Tasks de teste
+    // ----------------------------------------------------------------
 
-    // task pra aplicar o reset esperando o sincronizador
     task apply_reset;
         begin
             $display("[%0t] [SYSTEM] Aplicando Reset...", $time);
             reset = 1;
-            #100; // espera os 4 estágios do shift register do ResetSynchronizer
+            #100; // espera os 4 estagios do ResetSynchronizer
             reset = 0;
             #40;
         end
     endtask
 
-    // testa a decodificação de cartas (DecoderCor e DecoderValor)
     task test_cards;
         input [9:0] p_card;
         input [9:0] t_card;
@@ -103,26 +103,26 @@ module tb_view_controller();
         begin
             $display("[%0t] [DECODERS] Cartas: %s", $time, description);
             player_card = p_card;
-            top_card = t_card;
+            top_card    = t_card;
             #100;
         end
     endtask
 
-    // testa limites do conversor Binário para BCD (Quantidade de cartas)
     task test_quantities;
         input [6:0] p_qtd;
         input [6:0] c_qtd;
         begin
             $display("[%0t] [CONVERSOR] Testando BCD: Player=%d, CPU=%d", $time, p_qtd, c_qtd);
             n_player = p_qtd;
-            n_cpu = c_qtd;
+            n_cpu    = c_qtd;
             #100;
         end
     endtask
 
-
+    // ----------------------------------------------------------------
+    // Roteiro
+    // ----------------------------------------------------------------
     initial begin
-        // inicializacao de todas as variaveis
         clk = 0; reset = 0;
         player_card = 0; top_card = 0;
         n_player = 0; n_cpu = 0;
@@ -131,14 +131,11 @@ module tb_view_controller();
 
         $display("iniciando testes:");
 
-        // aplica o idle geral (reset)
         apply_reset();
         #100;
 
         // ----------------------------------------------------------------
-        // INICIO DO JOGO: start_game precisa ficar ALTO durante a animacao
-        // de inicio (o LedAnimator conta piscadas em bordas do tick ate ir
-        // para TURNOS; o DisplayAnimator vai para NORMAL_GAME).
+        // INICIO DO JOGO
         // ----------------------------------------------------------------
         $display("[%0t] [START] Segurando start_game ate as FSMs sairem do IDLE", $time);
         @(posedge clk); start_game = 1;
@@ -147,23 +144,24 @@ module tb_view_controller();
         #100;
 
         // ----------------------------------------------------------------
-        // DECODERS: agora em NORMAL_GAME o display do jogador deve mostrar
-        // a carta. A carta da mesa (top) nao depende da FSM.
+        // DECODERS: carta do player e do topo
         // ----------------------------------------------------------------
         test_cards(10'b00_0001_1000, 10'b00_1001_0100, "Player: Vermelho 1 | Top: Verde 9");
         test_cards(10'b01_1010_0010, 10'b01_1011_0001, "Player: Azul Bloqueio | Top: Amarelo Inverso");
         test_cards(10'b01_1100_1000, 10'b10_1101_0000, "Player: Vermelho +2 | Top: Coringa sem cor");
         test_cards(10'b10_1110_0000, 10'b10_1110_0000, "Player: Coringa +4  | Top: Coringa +4");
 
-        // CONVERSOR (BCD da quantidade de cartas) - nao depende da FSM
-        test_quantities(7'd0,  7'd0);   // limite inferior
-        test_quantities(7'd9,  7'd5);   // apenas unidades
-        test_quantities(7'd10, 7'd19);  // virada da dezena
-        test_quantities(7'd55, 7'd42);  // números intermediários
-        test_quantities(7'd99, 7'd108); // acima do limite -> trava em 99
+        // ----------------------------------------------------------------
+        // CONVERSOR BCD da quantidade de cartas
+        // ----------------------------------------------------------------
+        test_quantities(7'd0,  7'd0);    // limite inferior
+        test_quantities(7'd9,  7'd5);    // apenas unidades
+        test_quantities(7'd10, 7'd19);   // virada da dezena
+        test_quantities(7'd55, 7'd42);   // numeros intermediarios
+        test_quantities(7'd99, 7'd108);  // acima do limite -> trava em 99
 
         // ----------------------------------------------------------------
-        // TURNOS: verde para o jogador, vermelho para a CPU
+        // TURNOS
         // ----------------------------------------------------------------
         $display("[%0t] [LED_ANIM] Turno do PLAYER (verdes)", $time);
         player_turn = 1; cpu_turn = 0; #400;
@@ -171,7 +169,7 @@ module tb_view_controller();
         player_turn = 0; cpu_turn = 1; #400;
 
         // ----------------------------------------------------------------
-        // JOGADA INVALIDA: piscada dupla dos vermelhos e volta pra TURNOS
+        // JOGADA INVALIDA
         // ----------------------------------------------------------------
         $display("[%0t] [LED_ANIM] Jogada invalida (piscada dupla)", $time);
         player_turn = 1; cpu_turn = 0;
@@ -180,7 +178,7 @@ module tb_view_controller();
         #2000;
 
         // ----------------------------------------------------------------
-        // MENU DE COR: DisplayAnimator entra em CHOOSING_COLOR (pisca a cor)
+        // MENU DE COR
         // ----------------------------------------------------------------
         $display("[%0t] [DISP_ANIM] Menu de escolha de cor (blink)", $time);
         choosing_color = 1;
@@ -191,15 +189,15 @@ module tb_view_controller();
         choosing_color = 0; #400;
 
         // ----------------------------------------------------------------
-        // VITORIA: cobrinha verde por ~5s e volta para IDLE
+        // VITORIA
         // ----------------------------------------------------------------
         $display("[%0t] [LED_ANIM] Vitoria do PLAYER (cobrinha verde)", $time);
         @(posedge clk); win_game = 1;
         @(posedge clk); win_game = 0;
-        #12000;                             // tempo para a animacao concluir
+        #12000;
 
         // ----------------------------------------------------------------
-        // DERROTA: reinicia, recomeca o jogo e dispara lose_game
+        // DERROTA (reinicia e dispara lose_game)
         // ----------------------------------------------------------------
         apply_reset();
         @(posedge clk); start_game = 1; #1000; @(posedge clk); start_game = 0; #100;
@@ -213,8 +211,6 @@ module tb_view_controller();
         $display("fim do teste");
         $stop;
     end
-
-    // monitora o console
 
     initial begin
         $monitor("-> OUT_COR_P: %b | OUT_VAL_P: %b | N_PLAYER: %b%b",
